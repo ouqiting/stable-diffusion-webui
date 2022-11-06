@@ -174,9 +174,9 @@ def save_pil_to_file(pil_image, dir=None):
 gr.processing_utils.save_pil_to_file = save_pil_to_file
 
 
-def wrap_gradio_call(func, extra_outputs=None, add_stats=False):
+def wrap_gradio_call(func, extra_outputs=None):
     def f(*args, extra_outputs_array=extra_outputs, **kwargs):
-        run_memmon = opts.memmon_poll_rate > 0 and not shared.mem_mon.disabled and add_stats
+        run_memmon = opts.memmon_poll_rate > 0 and not shared.mem_mon.disabled
         if run_memmon:
             shared.mem_mon.monitor()
         t = time.perf_counter()
@@ -203,18 +203,11 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False):
 
             res = extra_outputs_array + [f"<div class='error'>{plaintext_to_html(type(e).__name__+': '+str(e))}</div>"]
 
-        shared.state.skipped = False
-        shared.state.interrupted = False
-        shared.state.job_count = 0
-
-        if not add_stats:
-            return tuple(res)
-
         elapsed = time.perf_counter() - t
         elapsed_m = int(elapsed // 60)
         elapsed_s = elapsed % 60
         elapsed_text = f"{elapsed_s:.2f}s"
-        if elapsed_m > 0:
+        if (elapsed_m > 0):
             elapsed_text = f"{elapsed_m}m "+elapsed_text
 
         if run_memmon:
@@ -231,6 +224,10 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False):
 
         # last item is always HTML
         res[-1] += f"<div class='performance'><p class='time'>Time taken: <wbr>{elapsed_text}</p>{vram_html}</div>"
+
+        shared.state.skipped = False
+        shared.state.interrupted = False
+        shared.state.job_count = 0
 
         return tuple(res)
 
@@ -1439,7 +1436,7 @@ def create_ui(wrap_gradio_gpu_call):
     opts.reorder()
 
     def run_settings(*args):
-        changed = []
+        changed = 0
 
         for key, value, comp in zip(opts.data_labels.keys(), args, components):
             assert comp == dummy_component or opts.same_type(value, opts.data_labels[key].default), f"Bad value for setting {key}: {value}; expecting {type(opts.data_labels[key].default).__name__}"
@@ -1449,20 +1446,18 @@ def create_ui(wrap_gradio_gpu_call):
                 continue
 
             oldval = opts.data.get(key, None)
-            try:
-                setattr(opts, key, value)
-            except RuntimeError:
-                continue
+
+            setattr(opts, key, value)
+
             if oldval != value:
                 if opts.data_labels[key].onchange is not None:
                     opts.data_labels[key].onchange()
 
-                changed.append(key)
-        try:
-            opts.save(shared.config_filename)
-        except RuntimeError:
-            return opts.dumpjson(), f'{len(changed)} settings changed without save: {", ".join(changed)}.'
-        return opts.dumpjson(), f'{len(changed)} settings changed: {", ".join(changed)}.'
+                changed += 1
+
+        opts.save(shared.config_filename)
+
+        return opts.dumpjson(), f'{changed} settings changed.'
 
     def run_settings_single(value, key):
         if not opts.same_type(value, opts.data_labels[key].default):
@@ -1566,10 +1561,11 @@ def create_ui(wrap_gradio_gpu_call):
             shared.state.need_restart = True
 
         restart_gradio.click(
+
             fn=request_restart,
-            _js='restart_reload',
             inputs=[],
             outputs=[],
+            _js='restart_reload'
         )
 
         if column is not None:

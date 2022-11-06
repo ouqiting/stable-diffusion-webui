@@ -3,6 +3,7 @@ import sys
 import traceback
 from collections import namedtuple
 
+import modules.ui as ui
 import gradio as gr
 
 from modules.processing import StableDiffusionProcessing

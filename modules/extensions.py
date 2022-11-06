@@ -34,11 +34,8 @@ class Extension:
         if repo is None or repo.bare:
             self.remote = None
         else:
-            try:
-                self.remote = next(repo.remote().urls, None)
-                self.status = 'unknown'
-            except Exception:
-                self.remote = None
+            self.remote = next(repo.remote().urls, None)
+            self.status = 'unknown'
 
     def list_files(self, subdir, extension):
         from modules import scripts
