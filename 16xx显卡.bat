@@ -1,1 +1,1 @@
-python\python.exe webui.py --lowvram --precision full --no-half
+python.exe launch.py --lowvram --precision full --no-half
