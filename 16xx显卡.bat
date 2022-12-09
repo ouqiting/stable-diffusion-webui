@@ -1,1 +1,0 @@
-python.exe launch.py --lowvram --precision full --no-half
